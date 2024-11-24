@@ -1,0 +1,275 @@
+
+// // TestInitAuditLogger checks that logChannel and fallbackFile are initialized correctly during the logger setup
+// func TestInitAuditLogger(t *testing.T) {
+// 	// Temporary file for testing
+// 	tmpfile, err := ioutil.TempFile("", "fallback_logs_*.json")
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	defer os.Remove(tmpfile.Name())
+
+// 	oldFallbackFilePath := fallbackFilePath
+// 	fallbackFilePath = tmpfile.Name() // Set test fallback file path
+// 	defer func() { fallbackFilePath = oldFallbackFilePath }()
+
+// 	mockFlusher := &MockLogFlusher{}
+// 	InitAuditLogger(mockFlusher, 100, 2, 10, time.Second)
+
+// 	// Check if logChannel was initialized
+// 	if logChannel == nil {
+// 		t.Error("logChannel was not initialized")
+// 	}
+
+// 	// Check if fallbackFile was initialized
+// 	if fallbackFile == nil {
+// 		t.Error("fallbackFile was not initialized")
+// 	}
+
+// 	// Clean up
+// 	fallbackFile.Close()
+// }
+
+// func TestAuditLoggingMiddleware(t *testing.T) {
+// 	mockFlusher := &MockLogFlusher{}
+// 	InitAuditLogger(mockFlusher, 100, 1, 10, 10*time.Millisecond)
+
+// 	handler := AuditLoggingMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// 		w.WriteHeader(http.StatusOK)
+// 	}))
+
+// 	req := httptest.NewRequest("GET", "/test", nil)
+// 	rr := httptest.NewRecorder()
+
+// 	handler.ServeHTTP(rr, req)
+
+// 	if rr.Code != http.StatusOK {
+// 		t.Errorf("handler returned wrong status code: got %v want %v", rr.Code, http.StatusOK)
+// 	}
+
+// 	// Wait for the log to be processed
+// 	time.Sleep(50 * time.Millisecond)
+
+// 	flushedLogs := mockFlusher.getFlushedLogs()
+// 	if len(flushedLogs) == 0 || len(flushedLogs[0]) == 0 {
+// 		t.Errorf("Expected at least 1 flushed log, got %d", len(flushedLogs))
+// 	}
+
+// 	// Test fallback logging
+// 	oldLogChannel := logChannel
+// 	logChannel = make(chan LogEntry, 1) // This will be full after one log
+// 	defer func() { logChannel = oldLogChannel }()
+
+// 	// Fill the channel
+// 	logChannel <- LogEntry{}
+
+// 	req = httptest.NewRequest("GET", "/test-fallback", nil)
+// 	rr = httptest.NewRecorder()
+
+// 	handler.ServeHTTP(rr, req)
+
+// 	// Wait for fallback log to be written
+// 	time.Sleep(50 * time.Millisecond)
+
+// 	// Check if fallback log was written
+// 	content, err := ioutil.ReadFile(fallbackFilePath)
+// 	if err != nil {
+// 		t.Fatalf("Failed to read fallback file: %v", err)
+// 	}
+// 	if len(content) == 0 {
+// 		t.Error("Fallback log was not written")
+// 	}
+// }
+
+// // TestAuditLoggingMiddleware validates that the middleware logs HTTP requests and falls back to file logging if the channel is full
+// func _TestAuditLoggingMiddleware(t *testing.T) {
+// 	mockFlusher := &MockLogFlusher{}
+// 	InitAuditLogger(mockFlusher, 100, 1, 10, time.Second)
+
+// 	handler := AuditLoggingMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+// 		w.WriteHeader(http.StatusOK) // Respond with OK status
+// 	}))
+
+// 	req := httptest.NewRequest("GET", "/test", nil)
+// 	rr := httptest.NewRecorder()
+
+// 	handler.ServeHTTP(rr, req)
+
+// 	// Check if response status is OK
+// 	if rr.Code != http.StatusOK {
+// 		t.Errorf("handler returned wrong status code: got %v want %v", rr.Code, http.StatusOK)
+// 	}
+
+// 	// Wait for the log to be processed
+// 	time.Sleep(500 * time.Millisecond)
+
+// 	// Verify that the log was flushed
+// 	flushedLogs := mockFlusher.getFlushedLogs()
+// 	if len(flushedLogs) != 1 || len(flushedLogs[0]) != 1 {
+// 		t.Errorf("Expected 1 flushed log, got %d", len(flushedLogs))
+// 	}
+
+// 	// Test fallback logging (when channel is full)
+// 	oldLogChannel := logChannel
+// 	logChannel = make(chan LogEntry, 1) // Set buffersize to 1 (This chan will be full after one log)
+// 	defer func() { logChannel = oldLogChannel }()
+
+// 	// Submit one LogEntry (aka Fill the channel)
+// 	logChannel <- LogEntry{}
+
+// 	req = httptest.NewRequest("GET", "/test-fallback", nil)
+// 	rr = httptest.NewRecorder()
+
+// 	handler.ServeHTTP(rr, req)
+
+// 	// Wait for fallback log to be written
+// 	time.Sleep(100 * time.Millisecond)
+
+// 	// Check if fallback log was written
+// 	content, err := ioutil.ReadFile(fallbackFilePath)
+// 	if err != nil {
+// 		t.Fatalf("Failed to read fallback file: %v", err)
+// 	}
+// 	if len(content) == 0 {
+// 		t.Error("Fallback log was not written")
+// 	}
+// }
+
+// // TestFallbackLog validates that the fallbackLog function correctly writes log entries to a file
+// func TestFallbackLog(t *testing.T) {
+// 	// Temporary file for testing
+// 	tmpfile, err := ioutil.TempFile("", "fallback_logs_*.json")
+// 	if err != nil {
+// 		t.Fatal(err)
+// 	}
+// 	defer os.Remove(tmpfile.Name())
+
+// 	oldFallbackFile := fallbackFile
+// 	fallbackFile = tmpfile // Set test fallback file
+// 	defer func() { fallbackFile = oldFallbackFile }()
+
+// 	// Test log entry
+// 	testEntry := LogEntry{
+// 		Timestamp: time.Now(),
+// 		Method:    "GET",
+// 		URL:       "/test",
+// 		Status:    200,
+// 		UserAgent: "TestAgent",
+// 		IPAddress: "127.0.0.1",
+// 	}
+
+// 	// Write log entry to fallback file
+// 	err = fallbackLog(testEntry)
+// 	if err != nil {
+// 		t.Fatalf("fallbackLog failed: %v", err)
+// 	}
+
+// 	// Verify that the log entry was written correctly
+// 	content, err := ioutil.ReadFile(tmpfile.Name())
+// 	if err != nil {
+// 		t.Fatalf("Failed to read fallback file: %v", err)
+// 	}
+
+// 	var loggedEntry LogEntry
+// 	err = json.Unmarshal(content, &loggedEntry)
+// 	if err != nil {
+// 		t.Fatalf("Failed to unmarshal logged entry: %v", err)
+// 	}
+
+// 	// Verify that the logged entry matches the original test entry
+// 	if loggedEntry.Method != testEntry.Method || loggedEntry.URL != testEntry.URL {
+// 		t.Errorf("Logged entry does not match test entry")
+// 	}
+// }
+
+
+// // TestLoggingResponseWriter validates that the loggingResponseWriter correctly captures and records HTTP response status codes
+// func TestLoggingResponseWriter(t *testing.T) {
+// 	rec := httptest.NewRecorder()
+// 	lrw := &loggingResponseWriter{ResponseWriter: rec, statusCode: http.StatusOK}
+
+// 	lrw.WriteHeader(http.StatusNotFound) // Set custom status status code
+
+// 	// Verify that the loggingResponseWriter captured the correct status code
+// 	if lrw.statusCode != http.StatusNotFound {
+// 		t.Errorf("Expected status code %d, got %d", http.StatusNotFound, lrw.statusCode)
+// 	}
+
+// 	if rec.Code != http.StatusNotFound {
+// 		t.Errorf("Expected recorder status code %d, got %d", http.StatusNotFound, rec.Code)
+// 	}
+// }
+
+
+
+
+// "Validates" that logs are successfully sent to a Loki instance (not returning errors in the happy case) and that error handling works correctly
+func Old_TestLokiFlusher(t *testing.T) {
+	logs := []LogEntry{
+		{Timestamp: time.Now(), Method: "GET", URL: "/test", Status: 200},
+	}
+
+	// Test successful case
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer server.Close()
+
+	flusher := NewLokiFlusher(server.URL, "test-tenant")
+
+	// Capture stdout
+	oldStdout := os.Stdout
+	r, w, _ := os.Pipe()
+	os.Stdout = w
+
+	flusher.flushLogs(logs) // Flush logs to test server
+
+	// Restore stdout
+	w.Close()
+	os.Stdout = oldStdout
+	captured, _ := ioutil.ReadAll(r)
+
+	if len(captured) > 0 {
+		t.Errorf("Expected no output for successful case, got: %s", captured)
+	}
+
+	// Test error response
+	errorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer errorServer.Close()
+
+	errorFlusher := NewLokiFlusher(errorServer.URL, "test-tenant")
+
+	// Capture stdout
+	r, w, _ = os.Pipe()
+	os.Stdout = w
+
+	errorFlusher.flushLogs(logs)
+
+	// Restore stdout
+	w.Close()
+	os.Stdout = oldStdout
+	captured, _ = ioutil.ReadAll(r)
+
+	if !strings.Contains(string(captured), "Unexpected response from Loki: 500 Internal Server Error") {
+		t.Errorf("Expected error message about 500 Internal Server Error, got: %s", captured)
+	}
+
+	// Test invalid URL
+	invalidFlusher := NewLokiFlusher("invalid-url", "test-tenant")
+
+	// Capture stdout
+	r, w, _ = os.Pipe()
+	os.Stdout = w
+
+	invalidFlusher.flushLogs(logs)
+
+	// Restore stdout
+	w.Close()
+	os.Stdout = oldStdout
+	captured, _ = ioutil.ReadAll(r)
+
+	if !strings.Contains(string(captured), "Failed to send logs to Loki: Post \"invalid-url/loki/api/v1/push\": unsupported protocol scheme \"\"") {
+		t.Errorf("Expected error message about unsupported protocol scheme, got: %s", captured)
+	}
+}
